@@ -15,10 +15,9 @@ public interface StockRepository extends JpaRepository<StockDomain, Integer> {
     Optional<StockDomain> findByStockId(@Param("stockId") Integer stockId);
 
     @Query(value = "SELECT * FROM mst_stock WHERE no_seri_barang = :nomorSeriBarang", nativeQuery = true)
-    StockDomain findByNoSeriBarang(@Param("nomorSeriBarang") String nomorSeriBarang);
+    Optional<StockDomain> findByNoSeriBarang(String nomorSeriBarang);
 
     @Query(value = "SELECT DISTINCT a.* FROM mst_stock as a ORDER BY a.stock_id ASC", nativeQuery = true)
     List<StockDomain> findAll();
-
 
 }

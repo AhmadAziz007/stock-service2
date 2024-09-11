@@ -23,32 +23,45 @@ public class StockService {
 
     public ResponseEntity<?> createStock(StockDTO stockDTO, AdditionalInfoDTO additionalInfoDTO) {
         try {
+
+            if (stockDTO.getNomorSeriBarang() == null ||
+                    stockDTO.getNamaBarang() == null ||
+                    stockDTO.getJumlahStockBarang() == null ||
+                    additionalInfoDTO.getKodeJenisBarang() == null ||
+                    additionalInfoDTO.getKodeWarna() == null ||
+                    stockDTO.getGambarBarang() == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Field mandatory tidak boleh kosong");
+            }
+
+            Optional<StockDomain> existingStock = stockRepository.findByNoSeriBarang(stockDTO.getNomorSeriBarang());
+            if (existingStock.isPresent()) {
+                // Jika nomor seri barang sudah ada, kembalikan response CONFLICT
+                return ResponseEntity.status(HttpStatus.CONFLICT).body("Nomor Seri Barang sudah ada");
+            }
+
             StockDomain stock = new StockDomain();
             stock.setNamaBarang(stockDTO.getNamaBarang());
             stock.setJumlahStockBarang(stockDTO.getJumlahStockBarang());
             stock.setNomorSeriBarang(stockDTO.getNomorSeriBarang());
 
-            // Perbaikan pada setAdditionalInfo
             stock.setAdditionalInfo("Jenis Barang: " + additionalInfoDTO.getKodeJenisBarang() + ", Warna: " + additionalInfoDTO.getKodeWarna());
 
             // Menangani kemungkinan kesalahan saat menyimpan gambar
             try {
                 stock.setGambarBarang(saveImageAsBase64(stockDTO.getGambarBarang()));
             } catch (RuntimeException e) {
-                // Log error dan kirim pesan kesalahan
                 throw new RuntimeException("Error while saving image: " + e.getMessage(), e);
             }
 
             stock.setCreatedAt(new Date());
             stock.setCreatedBy("Admin");
 
-            // Simpan ke database
             StockDomain savedStock = stockRepository.save(stock);
 
             // Membungkus response dalam ResponseEntity
-            return ResponseEntity.ok(savedStock);
+            // return ResponseEntity.ok(savedStock);
+            return ResponseEntity.status(HttpStatus.OK).body(savedStock);
         } catch (Exception e) {
-            // Tangkap kesalahan umum dan kirim pesan kesalahan
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while creating stock: " + e.getMessage());
         }
     }
@@ -60,18 +73,14 @@ public class StockService {
 
     public ResponseEntity<?> getStockDetail(Integer stockId) {
         try {
-            // Ambil stock berdasarkan stockId
             Optional<StockDomain> stock = stockRepository.findByStockId(stockId);
 
-            // Jika stock tidak ditemukan, kembalikan response NOT_FOUND dengan pesan
             if (stock.isEmpty()) {
                 return new ResponseEntity<>("Stock not found", HttpStatus.NOT_FOUND);
+            } else {
+                return new ResponseEntity<>(stock.get(), HttpStatus.OK);
             }
-
-            // Jika stock ditemukan, kembalikan response OK beserta data stock
-            return new ResponseEntity<>(stock.get(), HttpStatus.OK);
         } catch (Exception e) {
-            // Jika terjadi kesalahan, kembalikan response INTERNAL_SERVER_ERROR
             return new ResponseEntity<>("Error retrieving stock: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -96,8 +105,9 @@ public class StockService {
             stock.setUpdatedAt(new Date());
             stock.setUpdatedBy("Admin");
 
-            stockRepository.save(stock);
-            return ResponseEntity.ok(stock);
+            StockDomain savedStock = stockRepository.save(stock);
+            // return ResponseEntity.ok(stock);
+            return ResponseEntity.status(HttpStatus.OK).body(savedStock);
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Stock not found");
         }
@@ -105,19 +115,15 @@ public class StockService {
 
     public ResponseEntity<?> deleteStock(Integer stockId) {
         try {
-            // Ambil stock berdasarkan stockId
             Optional<StockDomain> stock = stockRepository.findByStockId(stockId);
 
-            // Jika stock tidak ditemukan, kembalikan response NOT_FOUND dengan pesan
             if (stock.isEmpty()) {
                 return new ResponseEntity<>("Stock not found", HttpStatus.NOT_FOUND);
+            } else {
+                stockRepository.delete(stock.get());
+                return new ResponseEntity<>("Stock delete successfully", HttpStatus.OK);
             }
-
-            // Jika stock ditemukan, kembalikan response OK beserta data stock
-            stockRepository.delete(stock.get());
-            return new ResponseEntity<>("Stock delete successfully", HttpStatus.OK);
         } catch (Exception e) {
-            // Jika terjadi kesalahan, kembalikan response INTERNAL_SERVER_ERROR
             return new ResponseEntity<>("Error retrieving stock: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
